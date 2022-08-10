@@ -47,64 +47,27 @@ class WESUP(nn.Module):
         mN = np.unique(sp)[-1]
         feat = []
         labels = []
-        print(torch.unique(y))
         for i in range(1, mN + 1):
-            print(i, mN)
             idxs = (sp == i).nonzero(as_tuple = False)
-            s1 = 0
-            s2 = 0
-            s3 = 0
-            s4 = 0
-            s5 = 0
-            s6 = 0
-            s7 = 0
-            s8 = 0
-            s9 = 0
-            s10 = 0
-            s11 = 0
-            s12 = 0
-            s13 = 0
-            ones = 0
-            zeros = 0
-            twos = 0
-            for idx in idxs:
-                s1 += conv[0][:, :, idx[0], idx[1]]
-                s2 += conv[1][:, :, idx[0], idx[1]]
-                s3 += conv[2][:, :, idx[0], idx[1]]
-                s4 += conv[3][:, :, idx[0], idx[1]]
-                s5 += conv[4][:, :, idx[0], idx[1]]
-                s6 += conv[5][:, :, idx[0], idx[1]]
-                s7 += conv[6][:, :, idx[0], idx[1]]
-                s8 += conv[7][:, :, idx[0], idx[1]]
-                s9 += conv[8][:, :, idx[0], idx[1]]
-                s10 += conv[9][:, :, idx[0], idx[1]]
-                s11 += conv[10][:, :, idx[0], idx[1]]
-                s12 += conv[11][:, :, idx[0], idx[1]]
-                s13 += conv[12][:, :, idx[0], idx[1]]
-                l = y[idx[0], idx[1]]
-                if l == 0:
-                    zeros += 1
-                elif l == 1:
-                    ones += 1
-                else:
-                    twos += 1
+            r = idxs[:, 0]
+            c = idxs[:, 1]
 
-            s1 = s1.squeeze(0) / len(idxs)
-            s2 = s2.squeeze(0) / len(idxs)
-            s3 = s3.squeeze(0) / len(idxs)
-            s4 = s4.squeeze(0) / len(idxs)
-            s5 = s5.squeeze(0) / len(idxs)
-            s6 = s6.squeeze(0) / len(idxs)
-            s7 = s7.squeeze(0) / len(idxs)
-            s8 = s8.squeeze(0) / len(idxs)
-            s9 = s9.squeeze(0) / len(idxs)
-            s10 = s10.squeeze(0) / len(idxs)
-            s11 = s11.squeeze(0) / len(idxs)
-            s12 = s12.squeeze(0) / len(idxs)
-            s13 = s13.squeeze(0) / len(idxs)
-            s = torch.concat((s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13))
+            layers = []
+            lb = y[r, c]
+            zeros = torch.sum(lb == 0)
+            ones = torch.sum(lb == 1)
+            twos = torch.sum(lb == 2)
+            
+            for layer in conv:
+                s = torch.mean(layer[:, :, r, c], 2).squeeze(0)
+                layers.append(s)
+
+            s = layers[0]
+            for i in range(1, len(layers)):
+                s = torch.concat((s, layers[i]))
+
             feat.append(s)
-            lab = np.argmax([zeros, ones, twos])
+            lab = torch.argmax(torch.tensor((zeros, ones, twos))).item()
             if lab == 0:
                 if twos > int(len(idxs) / 2):
                     lab = 2
@@ -113,7 +76,7 @@ class WESUP(nn.Module):
                 else:
                     lab = 0
             labels.append(lab)
-        print(labels)
+
         l = []
         u = []
         for i in range(len(labels)):
@@ -131,14 +94,15 @@ class WESUP(nn.Module):
                 if affinity[i][j] > maX:
                     maX = affinity[i][j]
                     mIdx = j
-            if maX > 0.8:
+            if maX >= 0.8:
                 labels[u[i]] = labels[l[mIdx]]
 
+        print(labels)
         pred = []
         for i in feat:
             low_d = self.mlp(i)
             y_hat = self.classifier(low_d)
-            print(torch.argmax(y_hat))
+            # print(torch.argmax(y_hat))
             pred.append(torch.argmax(y_hat))
 
         return pred, labels
