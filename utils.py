@@ -1,9 +1,4 @@
-import matplotlib.pyplot as plt
-from dataset import Aug_GlaS
-import numpy as np
-from model.model import WESUP
 import torch
-import torch.nn.functional as F
 
 def cross_entropy(y_hat, y_true, class_weights=None, epsilon=1e-7):
     """Semi-supervised cross entropy loss function.
@@ -44,34 +39,3 @@ def convert(labels):
     idx = (labels == 2).nonzero(as_tuple = False)
     l[idx, 1] = 1
     return l
-
-train = Aug_GlaS(transform = True)
-a = train.__getitem__(29)
-# fig, ax = plt.subplots(1, 2)
-# ax[0].imshow(a[0].permute(1, 2, 0))
-# ax[1].imshow(a[3])
-# plt.savefig('testing.png')
-
-model = WESUP(3, 2)
-device = torch.device("cuda:2")
-opt = torch.optim.Adam(model.parameters(), lr = 1e-4)
-model.to(device)
-x = a[0].unsqueeze(0).to(device)
-y = a[3].to(device)
-for i in range(40):
-    pred, labels = model(x, y)
-    # print(labels)
-    labels = convert(labels)
-    # print(pred, labels)
-    loss = cross_entropy(pred, labels.to(device))
-    print(loss)
-    opt.zero_grad()
-    loss.backward()
-    opt.step()
-    
-pred = model(x, y, 'infer')
-print(torch.sum(pred == 0), torch.sum(pred == 1))
-fig, ax = plt.subplots(1, 2)
-ax[0].imshow(pred.cpu().numpy())
-ax[1].imshow(y.cpu().numpy())
-plt.savefig('testing.png')
