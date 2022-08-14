@@ -33,7 +33,6 @@ class Aug_GlaS(Dataset):
         return int(len(list))
 
     def __getitem__(self, idx):
-        a = 512
         img = torch.from_numpy(cv2.imread('../../Aug_GlaS/' + self.name + '_' + str(idx + 1) + '.bmp'))
         img_cont = torch.from_numpy(cv2.imread('../../Aug_GlaS/' + self.name + '_' + str(idx + 1) + '_cont.png'))
         img_anno = torch.from_numpy(cv2.imread('../../Aug_GlaS/' + self.name + '_' + str(idx + 1) + '_anno.bmp'))
@@ -52,16 +51,18 @@ class Aug_GlaS(Dataset):
                 newImg = np.add(newImg, tmp) 
 
             count = 0
+            k = 10
             while count <= 10:
                 idx = random.sample(range(0, xs.shape[0]), 1)
                 a = find_nearest_white(newImg, [xs[idx], ys[idx]])
-                if(abs(a[0] - xs[idx]) <= 20 or abs(a[1] - ys[idx]) <= 20):
+                if(abs(a[0] - xs[idx]) <= k or abs(a[1] - ys[idx]) <= k):
                     continue    
                 count += 1
+                print(count)
                 x = xs[idx].item()
                 y = ys[idx].item()
-                newImg[x-10:x+10, y-10 : y+10] = 1
-                
+                newImg[x-k:x+k, y-k : y+k] = 1
+            
             img_anno = torch.from_numpy(newImg).unsqueeze(2)
 
         img = img.permute(2, 0, 1).to(torch.float)

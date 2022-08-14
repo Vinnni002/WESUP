@@ -33,7 +33,7 @@ val_dl = DataLoader(val, shuffle = True, batch_size = bs)
 device = torch.device('cuda:' + str(devices[0]))
 print('Using GPU device :', devices)
 model = WESUP(3, 2)
-opt = torch.optim.Adam(model.parameters(), lr = 10e-4, weight_decay = 10e-5)
+opt = torch.optim.Adam(model.parameters(), lr = 10e-4)
 model = torch.nn.DataParallel(model, device_ids = devices)
 model = model.to(device)
 
