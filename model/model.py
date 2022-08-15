@@ -5,9 +5,11 @@ from skimage.segmentation import slic
 import torch
 import numpy as np
 from numpy.linalg import norm
+import math
+import matplotlib.pyplot as plt
 
 def sim(a, b):
-    return torch.dot(a, b) / (torch.norm(a) * torch.norm(b))
+    return math.exp(-1 * (torch.dot(a, b) / (torch.norm(a) * torch.norm(b))))
 
 class WESUP(nn.Module):
     def __init__(self, in_channels = 3, out_channels = 2, D = 32):
@@ -61,13 +63,18 @@ class WESUP(nn.Module):
         if phase == 'train':
             self.feature_maps = None
             _ = self.backbone(x)
-            sp = torch.from_numpy(slic(x.squeeze(0).permute(1, 2, 0).cpu(), n_segments = (x.shape[2] * x.shape[3]) / 400, compactness = 50))
+            sp = torch.from_numpy(slic(x.squeeze(0).permute(1, 2, 0).cpu(), n_segments = (x.shape[2] * x.shape[3]) / 150, compactness = 40))
             mN = torch.unique(sp)[-1]
+            # print(mN)
             feat = []
             labels = []
             pred = []
+            # print(torch.unique(sp))
             for i in range(1, mN + 1):
                 idxs = (sp == i).nonzero(as_tuple = False)
+                # tmp = (sp == i)
+                # plt.imshow(tmp)
+                # plt.savefig('t.png')
                 r = idxs[:, 0]
                 c = idxs[:, 1]
 
@@ -75,7 +82,6 @@ class WESUP(nn.Module):
                 pred.append(self.classifier(self.mlp(tmp)))
                 feat.append(tmp.detach())
                 
-
                 lb = y[r, c]
                 zeros = torch.sum(lb == 0)
                 ones = torch.sum(lb == 1)
@@ -83,9 +89,9 @@ class WESUP(nn.Module):
                 
                 lab = torch.argmax(torch.tensor((zeros, ones, twos))).item()
                 if lab == 0:
-                    if twos > int(len(idxs) / 2):
+                    if twos > ones:
                         lab = 2
-                    elif ones >= 1:
+                    elif ones > twos:
                         lab = 1
                     else:
                         lab = 0
@@ -98,7 +104,7 @@ class WESUP(nn.Module):
                     u.append(i)
                 else:
                     l.append(i)
-
+            count = 0
             affinity = torch.zeros(len(u), len(l))
             for i in range(len(u)):
                 maX = 1e-10
@@ -108,31 +114,21 @@ class WESUP(nn.Module):
                     if affinity[i][j] > maX:
                         maX = affinity[i][j]
                         mIdx = j
-                if maX >= 0.8:
+                if maX >= 0.7:
+                    count += 1
                     labels[u[i]] = labels[l[mIdx]]
-
+                # print(maX)
             # pred = []
             # for i in feat:
             #     pred.append(self.classifier(self.mlp(i)))
-
+            print(count)
             return torch.stack(pred), torch.as_tensor(labels)
         elif phase == 'infer':
             with torch.no_grad():
-                s = (F.interpolate(self.backbone.features[:1](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach())
-                s = torch.concat((s, F.interpolate(self.backbone.features[:3](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:6](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:8](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:11](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:13](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:15](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:18](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:20](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:22](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:25](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:27](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
-                s = torch.concat((s, F.interpolate(self.backbone.features[:29](x), size = (x.shape[2], x.shape[2]), mode = 'bicubic').detach()), dim = 1)
+                self.feature_maps = None
+                _ = self.backbone(x)
                 res = torch.zeros(y.shape[0] * y.shape[1])
-                s = s.squeeze(0).permute(1, 2, 0).view(-1, 4224)
-                val = self.classifier(self.mlp(s))
-                res = torch.argmax(val, dim = 1).view(512, 512)
+                self.feature_maps = self.feature_maps.squeeze(0).permute(1, 2, 0).view(-1, 2112)
+                val = self.classifier(self.mlp(self.feature_maps))
+                res = torch.argmax(val, dim = 1).view(256, 256)
             return res
