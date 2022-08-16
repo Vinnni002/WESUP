@@ -24,7 +24,7 @@ class GlaS(Dataset):
         return int(len(list))
 
     def __getitem__(self, idx):
-        siz = 256
+        siz = 400
         img = torch.from_numpy(cv2.resize(cv2.imread('data_glas/GlaS/' + self.name + '_' + str(idx + 1) + '.bmp'), (siz, siz), cv2.INTER_CUBIC))
         img_point = torch.from_numpy(cv2.resize(cv2.imread('data_glas/points10_1/' + self.name + '_' + str(idx + 1) + '_anno.bmp'), (siz, siz), cv2.INTER_CUBIC))
         img_anno = torch.from_numpy(cv2.resize(cv2.imread('data_glas/GlaS/' + self.name + '_' + str(idx + 1) + '_anno.bmp'), (siz, siz), cv2.INTER_CUBIC))

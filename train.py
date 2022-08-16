@@ -33,7 +33,8 @@ val_dl = DataLoader(val, shuffle = True, batch_size = bs)
 device = torch.device('cuda:' + str(devices[0]))
 print('Using GPU device :', devices)
 model = WESUP(3, 2)
-opt = torch.optim.SGD(model.parameters(), lr = 10e-3, momentum = 0.95)
+# opt = torch.optim.Adam(model.parameters(), lr = 10e-4)
+opt = torch.optim.SGD(model.parameters(), lr = 10e-4, momentum = 0.95)
 model = torch.nn.DataParallel(model, device_ids = devices)
 model = model.to(device)
 
@@ -45,7 +46,7 @@ train_history = []
 val_history = []
 train_metric = []
 val_metric = []
-    
+history = []
 for epoch in range(epochs):
     total = 0
     total_met = 0
@@ -63,9 +64,11 @@ for epoch in range(epochs):
         total += loss.detach().cpu()
     
     total = total / (train.__len__() / bs)
-    print(total)
     met = eval(model, val, device)
     print(met)
+    history.append(met)
+    with open('history', 'wb') as f:
+        pickle.dump(history, f)
     # total_val = total_val / (val.__len__() / bs)
     # torch.save(model.state_dict(), 'Weights/epoch_' + str(epoch + 1))
     # if ((epoch + 1) % 5 == 0):

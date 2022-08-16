@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 
 def sim(a, b):
-    return math.exp(-1 * (torch.dot(a, b) / (torch.norm(a) * torch.norm(b))))
+    return ((torch.dot(a, b) / (torch.norm(a) * torch.norm(b))))
 
 class WESUP(nn.Module):
     def __init__(self, in_channels = 3, out_channels = 2, D = 32):
@@ -63,7 +63,7 @@ class WESUP(nn.Module):
         if phase == 'train':
             self.feature_maps = None
             _ = self.backbone(x)
-            sp = torch.from_numpy(slic(x.squeeze(0).permute(1, 2, 0).cpu(), n_segments = (x.shape[2] * x.shape[3]) / 150, compactness = 40))
+            sp = torch.from_numpy(slic(x.squeeze(0).permute(1, 2, 0).cpu(), n_segments = (x.shape[2] * x.shape[3]) / 300, compactness = 40))
             mN = torch.unique(sp)[-1]
             # print(mN)
             feat = []
@@ -114,14 +114,14 @@ class WESUP(nn.Module):
                     if affinity[i][j] > maX:
                         maX = affinity[i][j]
                         mIdx = j
-                if maX >= 0.7:
+                if maX >= 0.97:
                     count += 1
                     labels[u[i]] = labels[l[mIdx]]
                 # print(maX)
             # pred = []
             # for i in feat:
             #     pred.append(self.classifier(self.mlp(i)))
-            print(count)
+            # print(count)
             return torch.stack(pred), torch.as_tensor(labels)
         elif phase == 'infer':
             with torch.no_grad():
@@ -130,5 +130,5 @@ class WESUP(nn.Module):
                 res = torch.zeros(y.shape[0] * y.shape[1])
                 self.feature_maps = self.feature_maps.squeeze(0).permute(1, 2, 0).view(-1, 2112)
                 val = self.classifier(self.mlp(self.feature_maps))
-                res = torch.argmax(val, dim = 1).view(256, 256)
+                res = torch.argmax(val, dim = 1).view(400, 400)
             return res
