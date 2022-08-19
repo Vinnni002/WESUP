@@ -59,17 +59,19 @@ class WESUP(nn.Module):
             self.feature_maps = torch.cat(
                 (self.feature_maps, output.squeeze()))
 
-    def forward(self, x, y, phase = 'train'):
+    def forward(self, x, y = torch.zeros(400, 400), phase = 'train'):
         if phase == 'train':
             self.feature_maps = None
             _ = self.backbone(x)
             sp = torch.from_numpy(slic(x.squeeze(0).permute(1, 2, 0).cpu(), n_segments = (x.shape[2] * x.shape[3]) / 300, compactness = 40))
             mN = torch.unique(sp)[-1]
             # print(mN)
-            feat = []
-            labels = []
-            pred = []
-            # print(torch.unique(sp))
+            l_feat = []
+            u_feat = []
+            u_label = []
+            l_label = []
+            l_pred = []
+            u_pred = []
             for i in range(1, mN + 1):
                 idxs = (sp == i).nonzero(as_tuple = False)
                 # tmp = (sp == i)
@@ -79,8 +81,6 @@ class WESUP(nn.Module):
                 c = idxs[:, 1]
 
                 tmp = torch.mean(self.feature_maps[:, r, c], 1)
-                pred.append(self.classifier(self.mlp(tmp)))
-                feat.append(tmp.detach())
                 
                 lb = y[r, c]
                 zeros = torch.sum(lb == 0)
@@ -95,34 +95,32 @@ class WESUP(nn.Module):
                         lab = 1
                     else:
                         lab = 0
-                labels.append(lab)
                 
-            l = []
-            u = []
-            for i in range(len(labels)):
-                if labels[i] == 0:
-                    u.append(i)
+                if lab == 0:
+                    u_pred.append(self.classifier(self.mlp(tmp)))
+                    u_feat.append(tmp.detach())
+                    u_label.append(lab)
                 else:
-                    l.append(i)
+                    l_pred.append(self.classifier(self.mlp(tmp)))
+                    l_feat.append(tmp.detach())
+                    l_label.append(lab)
+                
             count = 0
-            affinity = torch.zeros(len(u), len(l))
-            for i in range(len(u)):
+            affinity = torch.zeros(len(u_feat), len(l_feat))
+            for i in range(len(u_feat)):
                 maX = 1e-10
                 mIdx = 0
-                for j in range(len(l)):
-                    affinity[i][j] = sim(feat[u[i]], feat[l[j]])
+                for j in range(len(l_feat)):
+                    affinity[i][j] = sim(u_feat[i], l_feat[j])
                     if affinity[i][j] > maX:
                         maX = affinity[i][j]
                         mIdx = j
                 if maX >= 0.97:
                     count += 1
-                    labels[u[i]] = labels[l[mIdx]]
+                    u_label[i] = l_label[mIdx]
                 # print(maX)
-            # pred = []
-            # for i in feat:
-            #     pred.append(self.classifier(self.mlp(i)))
-            # print(count)
-            return torch.stack(pred), torch.as_tensor(labels)
+            return torch.stack(l_pred), torch.as_tensor(l_label), torch.stack(u_pred), torch.as_tensor(u_label)
+
         elif phase == 'infer':
             with torch.no_grad():
                 self.feature_maps = None
@@ -130,5 +128,5 @@ class WESUP(nn.Module):
                 res = torch.zeros(y.shape[0] * y.shape[1])
                 self.feature_maps = self.feature_maps.squeeze(0).permute(1, 2, 0).view(-1, 2112)
                 val = self.classifier(self.mlp(self.feature_maps))
-                res = torch.argmax(val, dim = 1).view(400, 400)
+                res = torch.argmax(val, dim = 1).view(y.shape[0], y.shape[1])
             return res

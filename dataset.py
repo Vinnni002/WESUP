@@ -26,7 +26,7 @@ class GlaS(Dataset):
     def __getitem__(self, idx):
         siz = 400
         img = torch.from_numpy(cv2.resize(cv2.imread('data_glas/GlaS/' + self.name + '_' + str(idx + 1) + '.bmp'), (siz, siz), cv2.INTER_CUBIC))
-        img_point = torch.from_numpy(cv2.resize(cv2.imread('data_glas/points10_1/' + self.name + '_' + str(idx + 1) + '_anno.bmp'), (siz, siz), cv2.INTER_CUBIC))
+        img_point = torch.from_numpy(cv2.resize(cv2.imread('data_glas/points_10_5/' + self.name + '_' + str(idx + 1) + '_anno.bmp'), (siz, siz), cv2.INTER_CUBIC))
         img_anno = torch.from_numpy(cv2.resize(cv2.imread('data_glas/GlaS/' + self.name + '_' + str(idx + 1) + '_anno.bmp'), (siz, siz), cv2.INTER_CUBIC))
 
         img = img.permute(2, 0, 1).to(torch.float)

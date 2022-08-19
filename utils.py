@@ -53,6 +53,19 @@ def convert(labels):
     l[idx, 1] = 1
     return l
 
+# def convert(labels, pred):
+#     # l = torch.zeros(labels.shape[0])
+#     # p = torch.zeros(pred.shape[0], 2)
+#     # idx = (labels == 1).nonzero(as_tuple = False)
+#     # l[idx, 0] = 1
+#     # idx = (labels == 2).nonzero(as_tuple = False)
+#     # l[idx, 1] = 1
+#     idx = ((labels == 1).logical_or(labels == 2)).nonzero(as_tuple = False)
+#     # print('Idx : ',idx.shape)
+#     labels = F.one_hot(labels[idx][:, 0] - 1, num_classes = 2)
+#     pred = pred[idx, :]
+#     return labels, pred[:, 0, :]
+
 def dice(a, b):
     aflat = a.view(-1)
     bflat = b.view(-1)
@@ -266,34 +279,35 @@ def eval(model, ds, device, x_th = 0.8, y_th = 0.5):
     # total2 /= aa
     return total, total1
 
-def box_plot(model, ds, device, x_th = 0.5, y_th = 0.5, fn = 'plot.png'):
+def box_plot(model, ds, device, fn = 'plot.png'):
     f1 = []
     dice = []
     hausdorff = []
 
     aa = ds.__len__()
     for k in tqdm.tqdm(range(aa), 'Creating....'):
-        a, b, c, d = ds.__getitem__(k)
+        a, b, c = ds.__getitem__(k)
         a = a.to(torch.float).to(device)
-        output, ps, pc, ps_t, pc_t = generate(model, a, x_th, y_th)
+        output = generate(model, a, b)
         output = torch.from_numpy(output)
-        a1 = object_f1_score(d, output)
-        a2 = object_dice_score(d, output)
-        a3 = object_hausdorff_score(d, output)
+        a1 = object_f1_score(c, output)
+        a2 = object_dice_score(c, output)
+        # a3 = object_hausdorff_score(c, output)
         f1.append(a1)
         dice.append(a2)
-        hausdorff.append(a3)
-    f1 = np.array(f1)
-    dice = np.array(dice)
-    hausdorff = np.array(hausdorff)
+        # hausdorff.append(a3)
+        # print(a1, a2, a3)
+    # f1 = np.array(f1)
+    # dice = np.array(dice)
+    # hausdorff = np.array(hausdorff)
 
-    data = [f1, dice, hausdorff]
-    fig = plt.figure(figsize = (10, 7))
-    ax = fig.add_axes([0, 0, 1, 1])
-    bp = ax.boxplot(data)
-    plt.show()
-    plt.savefig(fn)
-    return data
+    # data = [f1, dice, ]
+    # fig = plt.figure(figsize = (10, 7))
+    # ax = fig.add_axes([0, 0, 1, 1])
+    # bp = ax.boxplot(data)
+    # plt.show()
+    # plt.savefig(fn)
+    return f1, dice
 
 def dse_eval(model, unet, ds, device, device_1, x_th = 0.8, y_th = 0.5):
     total = 0
